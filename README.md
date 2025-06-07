@@ -19,3 +19,11 @@ UDISK
 └─ config         // 系统设置
    └─ sysconfig.json
 ```
+
+
+
+## FAQs
+
+- Q1：出现执行`./build.sh`时报错`./build.sh: line 2: $'\r': command not found`。
+
+> A1：莫慌，来上一段`sed -i 's/\r$//' build.sh`即可，这时你重新执行`./build.sh`肯定解决问题啦！
