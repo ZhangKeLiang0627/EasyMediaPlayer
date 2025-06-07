@@ -1,0 +1,34 @@
+{
+  "brightness": 75,
+  "volume": 50,
+  "applications": [
+    {
+      "name": "videoPlayer",
+      "exec": "eMP_video",
+      "argv": "<null>",
+      "icon": "eMP_video_icon.bin",
+      "config": "eMP_video_config.json"
+    },
+    {
+      "name": "Photos",
+      "exec": "eMP_picture",
+      "argv": "<null>",
+      "icon": "App2.bin",
+      "config": "App2.json"
+    },
+    {
+      "name": "music",
+      "exec": "eMP_music",
+      "argv": "<null>",
+      "icon": "App3.bin",
+      "config": "App3.json"
+    },
+    {
+      "name": "App4",
+      "exec": "<null>",
+      "argv": "<null>",
+      "icon": "App4.bin",
+      "config": "App4.json"
+    }
+  ]
+}

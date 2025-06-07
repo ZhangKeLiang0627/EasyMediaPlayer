@@ -1,0 +1,13 @@
+[submodule "EasyMediaPlayer-mainPage"]
+	path = EasyMediaPlayer-mainPage
+	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-mainPage
+[submodule "EasyMediaPlayer-video"]
+	path = EasyMediaPlayer-video
+	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-video
+[submodule "EasyMediaPlayer-picture"]
+	path = EasyMediaPlayer-picture
+	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-picture
+[submodule "EasyMediaPlayer-music"]
+	path = EasyMediaPlayer-music
+	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-music
+
