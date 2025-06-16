@@ -11,3 +11,6 @@
 	path = EasyMediaPlayer-music
 	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-music
 
+[submodule "EasyMediaPlayer-about"]
+	path = EasyMediaPlayer-about
+	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-about

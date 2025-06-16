@@ -29,6 +29,13 @@
       "argv": "<null>",
       "icon": "App4.bin",
       "config": "App4.json"
+    },
+    {
+      "name": "About",
+      "exec": "<null>",
+      "argv": "<null>",
+      "icon": "About.bin",
+      "config": "About.json"
     }
   ]
 }

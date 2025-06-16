@@ -3,6 +3,14 @@
 
 ---
 
+## 克隆
+
+```
+git clone --recursive https://github.com/ZhangKeLiang0627/EasyMediaPlayer
+
+git submodule update --init --recursive
+```
+
 ## 文件树
 
 ```
