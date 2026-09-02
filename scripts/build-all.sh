@@ -73,9 +73,12 @@ while IFS=$'\t' read -r name repo branch binary build path; do
             make CROSS=1 -j"${JOBS}"
             ;;
         cmake)
+            # 用仓库自带的工具链文件交叉编译；EMP_CROSS=ON 让 app 走
+            # sunxifb 交叉分支（而非 x86_64 本地的 SDL2 分支）
             cmake -B build \
-                -DCMAKE_TOOLCHAIN_FILE="${T113_SDK}/cmake/build_for_t113s3.cmake" \
-                -DT113_SDK="${T113_SDK}"
+                -DCMAKE_TOOLCHAIN_FILE="${REPO_ROOT}/scripts/t113-toolchain.cmake" \
+                -DT113_SDK="${T113_SDK}" \
+                -DEMP_CROSS=ON
             cmake --build build -j"${JOBS}"
             mv "build/${binary}" "./${binary}"
             ;;

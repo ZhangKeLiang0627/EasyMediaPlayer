@@ -62,7 +62,7 @@ apps:
     repo: ZhangKeLiang0627/eMP-settings
     branch: main
     binary: eMP_settings
-    build: make
+    build: cmake
     enabled: true
 
   - name: eMP-video
