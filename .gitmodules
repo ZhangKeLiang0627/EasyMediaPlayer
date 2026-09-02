@@ -1,18 +1,18 @@
-[submodule "EasyMediaPlayer-mainPage"]
-	path = EasyMediaPlayer-mainPage
+[submodule "eMP-mainPage"]
+	path = eMP-mainPage
 	url = https://github.com/ZhangKeLiang0627/eMP-mainPage
-[submodule "EasyMediaPlayer-video"]
-	path = EasyMediaPlayer-video
+[submodule "eMP-video"]
+	path = eMP-video
 	url = https://github.com/ZhangKeLiang0627/eMP-video
-[submodule "EasyMediaPlayer-picture"]
-	path = EasyMediaPlayer-picture
+[submodule "eMP-picture"]
+	path = eMP-picture
 	url = https://github.com/ZhangKeLiang0627/eMP-picture
-[submodule "EasyMediaPlayer-music"]
-	path = EasyMediaPlayer-music
+[submodule "eMP-music"]
+	path = eMP-music
 	url = https://github.com/ZhangKeLiang0627/eMP-music
 
-[submodule "EasyMediaPlayer-about"]
-	path = EasyMediaPlayer-about
+[submodule "eMP-about"]
+	path = eMP-about
 	url = https://github.com/ZhangKeLiang0627/eMP-about
 [submodule "eMP-documents"]
 	path = eMP-documents

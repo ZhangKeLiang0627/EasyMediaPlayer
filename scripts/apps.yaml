@@ -25,8 +25,6 @@ apps:
     binary: eMP_about
     build: cmake
     enabled: true
-    # 历史遗留路径，保持不动以免破坏已有克隆
-    path: EasyMediaPlayer-about
 
   - name: eMP-documents
     repo: ZhangKeLiang0627/eMP-documents
@@ -41,7 +39,6 @@ apps:
     binary: eMP_mainPage
     build: cmake
     enabled: true
-    path: EasyMediaPlayer-mainPage
 
   - name: eMP-music
     repo: ZhangKeLiang0627/eMP-music
@@ -49,7 +46,6 @@ apps:
     binary: eMP_music
     build: cmake
     enabled: true
-    path: EasyMediaPlayer-music
 
   - name: eMP-picture
     repo: ZhangKeLiang0627/eMP-picture
@@ -57,7 +53,6 @@ apps:
     binary: eMP_picture
     build: cmake
     enabled: true
-    path: EasyMediaPlayer-picture
 
   - name: eMP-settings
     repo: ZhangKeLiang0627/eMP-settings
@@ -72,7 +67,6 @@ apps:
     binary: eMP_video
     build: cmake
     enabled: true
-    path: EasyMediaPlayer-video
 
   - name: eMP-serial
     repo: ZhangKeLiang0627/eMP-serial
