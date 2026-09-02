@@ -85,15 +85,19 @@ while IFS=$'\t' read -r name repo branch binary build path; do
             make CROSS=1 -j"${JOBS}"
             ;;
         cmake)
-            # 用 eMP-toolchain 自带的规范工具链文件交叉编译（由
-            # setup-t113-toolchain.sh 部署到 ${T113_SDK}/cmake/）。该文件把
-            # CMAKE_HOST_SYSTEM_PROCESSOR 置为 arm，app 的 CMakeLists 会因此
-            # 自动落到 sunxifb 交叉分支 —— 无需改动任何 app 文件。
-            cmake -B build \
-                -DCMAKE_TOOLCHAIN_FILE="${T113_SDK}/cmake/build_for_t113s3.cmake" \
-                -DT113_SDK="${T113_SDK}"
-            cmake --build build -j"${JOBS}"
-            mv "build/${binary}" "./${binary}"
+            # 主线：CMake 交叉编译 —— 用 eMP-toolchain 自带的规范工具链文件
+            # （由 setup 部署到 ${T113_SDK}/cmake/，内部把 CMAKE_HOST_SYSTEM_
+            # PROCESSOR 置为 arm，app 的 CMakeLists 自动落交叉分支）。
+            if cmake -B build \
+                    -DCMAKE_TOOLCHAIN_FILE="${T113_SDK}/cmake/build_for_t113s3.cmake" \
+                    -DT113_SDK="${T113_SDK}" \
+                && cmake --build build -j"${JOBS}"; then
+                mv "build/${binary}" "./${binary}"
+            elif [ -f Makefile ]; then
+                # 兜底：CMake 不可用时回退到仓库自带的 Makefile（make CROSS=1）
+                echo "[fallback] ${name}: CMake 构建失败，回退到 Makefile (make CROSS=1)"
+                make CROSS=1 -j"${JOBS}"
+            fi
             ;;
         *)
             fail "${name}: 未知构建方式 ${build}"

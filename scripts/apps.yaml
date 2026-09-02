@@ -11,7 +11,8 @@
 #   repo      GitHub 仓库，格式 owner/name
 #   branch    跟踪分支
 #   binary    编译产物文件名，会被放进 firmware/
-#   build     构建方式：make（执行 make CROSS=1）/ cmake（走 T113_SDK 工具链文件）
+#   build     构建方式：cmake（主线，引用 $T113_SDK 规范工具链文件交叉编译；
+#             CMake 不可用且仓库带 Makefile 时 build-all.sh 自动兜底 make CROSS=1）
 #   enabled   是否纳入 CI 编译与固件打包
 #   path      子模块路径，省略则用 name
 # =============================================================================
@@ -22,7 +23,7 @@ apps:
     repo: ZhangKeLiang0627/eMP-about
     branch: main
     binary: eMP_about
-    build: make
+    build: cmake
     enabled: true
     # 历史遗留路径，保持不动以免破坏已有克隆
     path: EasyMediaPlayer-about
@@ -46,7 +47,7 @@ apps:
     repo: ZhangKeLiang0627/eMP-music
     branch: main
     binary: eMP_music
-    build: make
+    build: cmake
     enabled: true
     path: EasyMediaPlayer-music
 
@@ -54,7 +55,7 @@ apps:
     repo: ZhangKeLiang0627/eMP-picture
     branch: main
     binary: eMP_picture
-    build: make
+    build: cmake
     enabled: true
     path: EasyMediaPlayer-picture
 
