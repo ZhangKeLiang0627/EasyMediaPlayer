@@ -10,7 +10,9 @@
 # 产物:
 #   build/firmware.tar.gz   内含 firmware/ （媒体资源来自仓库，二进制为本次编译结果）
 # =============================================================================
-set -euo pipefail
+# 注意：不要用 set -e。单个 app 编译失败应当继续编译其余 app 并照常打包，
+# 由末尾的 BUILT/FAILED 汇总决定是否成功，而不是一失败就中断整条流水线。
+set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_ROOT}"
