@@ -14,4 +14,6 @@ EasyMediaPlayer-about-bk/
 *.a
 *.so
 *.so.*
+*.pyc
+__pycache__/
 

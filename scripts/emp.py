@@ -8,6 +8,8 @@ eMP 应用清单工具。
   discover          扫描 GitHub 上带 emp-app topic（或 eMP-* 命名）的仓库，
                     列出尚未登记进 apps.yaml 的候选
   sync-submodules   依据 apps.yaml 增删子模块（缺失的自动 git submodule add）
+  bump              把每个 app 子模块的 gitlink 拉新到其分支最新提交
+                    （发布前调用；--commit 提交，--dry-run 只预览）
   check             校验 .gitmodules 与 apps.yaml 是否一致
 
 依赖: 仅标准库（PyYAML 可用时优先使用，否则用内置简易解析器）
@@ -254,6 +256,71 @@ def cmd_check(_args) -> int:
     return 0 if ok else 1
 
 
+def ls_remote_head(repo: str, branch: str) -> str:
+    """查某仓库分支的最新提交 SHA（无需 token）。"""
+    url = f"https://github.com/{repo}.git"
+    r = subprocess.run(["git", "ls-remote", url, f"refs/heads/{branch}"],
+                       capture_output=True, text=True, timeout=120)
+    if r.returncode != 0:
+        print(f"[warn] ls-remote {repo}@{branch} 失败: "
+              f"{(r.stderr or '').strip()}", file=sys.stderr)
+        return ""
+    return (r.stdout.splitlines() or [""])[0].split("\t")[0]
+
+
+def cmd_bump(args) -> int:
+    """把 apps.yaml 里每个 app 子模块的 gitlink 更新到其分支最新提交。
+
+    不需要子模块检出：直接 git ls-remote 取最新 SHA，再 update-index 覆盖
+    gitlink（mode 160000）即可，仓库体积零增长。
+    """
+    changed: list[tuple[str, str, str, str, str]] = []
+    checked = 0
+    for a in all_apps():
+        path, repo, branch = a["path"], a["repo"], a.get("branch", "main")
+        r = subprocess.run(["git", "ls-files", "-s", "--", path], cwd=ROOT,
+                           capture_output=True, text=True)
+        cur = ""
+        for line in r.stdout.splitlines():
+            parts = line.split()
+            if len(parts) >= 4 and parts[0] == "160000":
+                cur = parts[1]
+                break
+        if not cur:
+            print(f"[skip] {path}: 未登记为 gitlink（先跑 sync-submodules）")
+            continue
+        checked += 1
+        latest = ls_remote_head(repo, branch)
+        if not latest:
+            continue
+        if latest == cur:
+            print(f"[ok]   {path:26s} 已是最新 {latest[:12]}")
+            continue
+        print(f"[bump] {path:26s} {cur[:12]} -> {latest[:12]}  ({repo}@{branch})")
+        if not args.dry_run:
+            subprocess.run(["git", "update-index", "--cacheinfo",
+                            f"160000,{latest},{path}"], cwd=ROOT, check=True)
+        changed.append((path, cur, latest, repo, branch))
+
+    print(f"\n检查 {checked} 个子模块："
+          f"{'全部最新，无需更新' if not changed else f'{len(changed)} 个需要拉新'}")
+    if not changed:
+        return 0
+    if args.dry_run:
+        print("(dry-run：仅预览，未改动索引)")
+        return 0
+    if args.commit:
+        body = "\n".join(f"- {p}: {c[:12]} -> {l[:12]} ({r}@{b})"
+                         for p, c, l, r, b in changed)
+        subprocess.run(["git", "commit", "-m",
+                        "chore: 发布前把子模块拉新到各自最新 main\n\n" + body],
+                       cwd=ROOT, check=True)
+        print("已提交子模块更新")
+    else:
+        print("已更新索引（未提交）。加 --commit 提交。")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -269,6 +336,11 @@ def main() -> int:
     s = sub.add_parser("sync-submodules", help="按清单增删子模块")
     s.add_argument("--dry-run", action="store_true")
     s.set_defaults(func=cmd_sync)
+
+    b = sub.add_parser("bump", help="把各 app 子模块指针拉新到分支最新提交")
+    b.add_argument("--dry-run", action="store_true", help="只打印不修改")
+    b.add_argument("--commit", action="store_true", help="有更新时提交")
+    b.set_defaults(func=cmd_bump)
 
     sub.add_parser("check", help="校验 .gitmodules 一致性").set_defaults(func=cmd_check)
 

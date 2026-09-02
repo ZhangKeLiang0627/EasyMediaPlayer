@@ -73,31 +73,29 @@ apps:
     enabled: true
     path: EasyMediaPlayer-video
 
-  # ---------- 已发现但暂不打包（逐个验证通过后把 enabled 改成 true）----------
   - name: eMP-serial
     repo: ZhangKeLiang0627/eMP-serial
     branch: main
     binary: eMP_serial
-    build: make
-    enabled: false
-    note: 源码已有 Makefile，但 firmware/ 里还没有对应产物，确认要装机后再启用
+    build: cmake
+    enabled: true
 
   - name: eMP-tokenMonitor
     repo: ZhangKeLiang0627/eMP-tokenMonitor
     branch: main
     binary: eMP_tokenMonitor
-    build: make
-    enabled: false
-    note: 独立工具，非播放器主界面应用
+    build: cmake
+    enabled: true
 
   - name: eMP-gba
     repo: ZhangKeLiang0627/eMP-gba
     branch: main
     binary: eMP_gba
     build: cmake
-    enabled: false
-    note: GBA 模拟器，走 CMake + T113_SDK，尚未纳入固件
+    enabled: true
+    note: GBA 模拟器，内嵌 lvgl/vba-next 子模块（build-all.sh 会自动递归拉取）
 
+  # ---------- 已发现但暂不打包（逐个验证通过后把 enabled 改成 true）----------
   - name: eMP-template
     repo: ZhangKeLiang0627/eMP-template
     branch: main

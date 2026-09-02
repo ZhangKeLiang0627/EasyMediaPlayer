@@ -51,6 +51,19 @@ jobs:
           path: build/toolchain
           key: t113-toolchain-${{ steps.tc.outputs.sha }}
 
+      - name: 拉新所有子模块到最新并提交到 main
+        # 发布前置要求：每个 app 子模块都指向各自分支最新。
+        # main / 手动触发时把更新提交回 main，保证下次打 tag 时指针是新的；
+        # tag 触发的构建本身就会按各 app 最新 main 拉取（build-all.sh），
+        # 且 firmware.tar.gz 内含 VERSIONS.txt 记录每个 app 的来源提交。
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          bash scripts/bump-submodules.sh --commit || exit 1
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main \
+            || echo "[warn] 推送未生效（远端可能刚有更新），继续构建"
+
       - name: Build all apps
         env:
           TOOLCHAIN_REF: ${{ steps.tc.outputs.ref }}

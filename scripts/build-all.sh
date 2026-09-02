@@ -43,7 +43,18 @@ if [ -d "${REPO_ROOT}/image" ]; then
     cp -a "${REPO_ROOT}/image" "${DIST_DIR}/image"
 fi
 
-# ------------------------------------------------------------- 3. 逐个编译
+# ------------------------------------------------------------ 3. 版本清单
+# 记录本次构建每个 app 的来源提交，随包发布，可审计"发布前是否已拉新到最新"
+VERSIONS="${DIST_DIR}/VERSIONS.txt"
+{
+    echo "EasyMediaPlayer firmware — 构建版本清单"
+    echo "生成时间 : $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "umbrella : $(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || echo n/a)"
+    echo "toolchain: ${TOOLCHAIN_REF:-main} (ZhangKeLiang0627/eMP-toolchain)"
+    echo "----------------------------------------------------------------"
+} > "${VERSIONS}"
+
+# ------------------------------------------------------------- 4. 逐个编译
 BUILT=()
 FAILED=()
 
@@ -64,6 +75,7 @@ while IFS=$'\t' read -r name repo branch binary build path; do
         git -C "${src}" submodule update --init --recursive 2>&1 | tail -1 \
             || fail "${name}: 子模块拉取失败"
     fi
+    src_sha="$(git -C "${src}" rev-parse HEAD 2>/dev/null || echo unknown)"
 
     (
         cd "${src}"
@@ -91,6 +103,8 @@ while IFS=$'\t' read -r name repo branch binary build path; do
     )
     if [ $? -ne 0 ]; then
         fail "${name}: 编译失败"
+        printf '  [FAIL] %-21s %s@%s (编译失败)\n' \
+            "${name}" "${repo}" "${src_sha:0:12}" >> "${VERSIONS}"
         FAILED+=("${name}")
         continue
     fi
@@ -104,6 +118,8 @@ while IFS=$'\t' read -r name repo branch binary build path; do
     cp "${src}/${binary}" "${DIST_DIR}/firmware/${binary}"
     chmod +x "${DIST_DIR}/firmware/${binary}"
     BUILT+=("${binary}")
+    printf '  [ok]   %-22s %s@%s  -> firmware/%s\n' \
+        "${name}" "${repo}" "${src_sha:0:12}" "${binary}" >> "${VERSIONS}"
     log "  ✓ ${binary} ($(du -h "${src}/${binary}" | cut -f1))"
 
 done < <(python3 "${REPO_ROOT}/scripts/emp.py" list)
@@ -119,12 +135,14 @@ if [ ${#FAILED[@]} -gt 0 ]; then
 fi
 [ ${#BUILT[@]} -eq 0 ] && { echo "没有任何应用编译成功"; exit 1; }
 
-# ---------------------------------------------------------------- 5. 打包
+# ---------------------------------------------------------------- 6. 打包
 TARBALL="${BUILD_DIR}/firmware.tar.gz"
 rm -f "${TARBALL}"
-tar czf "${TARBALL}" -C "${DIST_DIR}" firmware $([ -d "${DIST_DIR}/image" ] && echo image)
+tar czf "${TARBALL}" -C "${DIST_DIR}" firmware VERSIONS.txt $([ -d "${DIST_DIR}/image" ] && echo image)
 
 log "产物: ${TARBALL}  ($(du -h "${TARBALL}" | cut -f1))"
+log "版本清单:"
+sed 's/^/    /' "${VERSIONS}"
 tar tzf "${TARBALL}" | sed 's/^/    /' | head -20
 echo "    ... ($(tar tzf "${TARBALL}" | wc -l) 项)"
 
