@@ -9,6 +9,9 @@ EasyMediaPlayer-about-bk/
 # CI 交叉编译工作目录（每次构建都会重新生成，切勿提交）
 /build/
 
+# firmware/ 里的 eMP_* 可执行文件由每次 Release 自动交叉编译，不落库
+/firmware/eMP_*
+
 # 本地编译产物
 *.o
 *.a
