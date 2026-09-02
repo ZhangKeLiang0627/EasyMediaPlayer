@@ -28,7 +28,7 @@ mkdir -p "${APPS_DIR}" "${DIST_DIR}"
 
 # ------------------------------------------------------------ 1. 准备工具链
 log "准备交叉编译工具链 ..."
-"${REPO_ROOT}/scripts/setup-t113-toolchain.sh" "${SDK_DIR}"
+bash "${REPO_ROOT}/scripts/setup-t113-toolchain.sh" "${SDK_DIR}"
 export T113_SDK="${SDK_DIR}"
 export STAGING_DIR="${SDK_DIR}/sysroot"
 

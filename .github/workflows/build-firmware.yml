@@ -54,7 +54,7 @@ jobs:
       - name: Build all apps
         env:
           TOOLCHAIN_REF: ${{ steps.tc.outputs.ref }}
-        run: ./scripts/build-all.sh
+        run: bash ./scripts/build-all.sh
 
       - name: Inspect artifacts
         run: |
