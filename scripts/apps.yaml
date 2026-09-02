@@ -1,0 +1,112 @@
+# =============================================================================
+# eMP 应用清单 —— 唯一事实来源
+#
+# 本文件同时驱动三件事：
+#   1. CI 交叉编译（scripts/build-all.sh 读取 enabled: true 的条目）
+#   2. 子模块同步（python3 scripts/emp.py sync-submodules）
+#   3. 新应用发现（python3 scripts/emp.py discover 对比本清单找出未登记的仓库）
+#
+# 字段说明：
+#   name      应用名，同时作为默认子模块路径（path 可覆盖）
+#   repo      GitHub 仓库，格式 owner/name
+#   branch    跟踪分支
+#   binary    编译产物文件名，会被放进 firmware/
+#   build     构建方式：make（执行 make CROSS=1）/ cmake（走 T113_SDK 工具链文件）
+#   enabled   是否纳入 CI 编译与固件打包
+#   path      子模块路径，省略则用 name
+# =============================================================================
+
+apps:
+  # ---------- 已纳入固件的应用 ----------
+  - name: eMP-about
+    repo: ZhangKeLiang0627/eMP-about
+    branch: main
+    binary: eMP_about
+    build: make
+    enabled: true
+    # 历史遗留路径，保持不动以免破坏已有克隆
+    path: EasyMediaPlayer-about
+
+  - name: eMP-documents
+    repo: ZhangKeLiang0627/eMP-documents
+    branch: main
+    binary: eMP_documents
+    build: make
+    enabled: true
+
+  - name: eMP-mainPage
+    repo: ZhangKeLiang0627/eMP-mainPage
+    branch: main
+    binary: eMP_mainPage
+    build: make
+    enabled: true
+    path: EasyMediaPlayer-mainPage
+
+  - name: eMP-music
+    repo: ZhangKeLiang0627/eMP-music
+    branch: main
+    binary: eMP_music
+    build: make
+    enabled: true
+    path: EasyMediaPlayer-music
+
+  - name: eMP-picture
+    repo: ZhangKeLiang0627/eMP-picture
+    branch: main
+    binary: eMP_picture
+    build: make
+    enabled: true
+    path: EasyMediaPlayer-picture
+
+  - name: eMP-settings
+    repo: ZhangKeLiang0627/eMP-settings
+    branch: main
+    binary: eMP_settings
+    build: make
+    enabled: true
+
+  - name: eMP-video
+    repo: ZhangKeLiang0627/eMP-video
+    branch: main
+    binary: eMP_video
+    build: make
+    enabled: true
+    path: EasyMediaPlayer-video
+
+  # ---------- 已发现但暂不打包（逐个验证通过后把 enabled 改成 true）----------
+  - name: eMP-serial
+    repo: ZhangKeLiang0627/eMP-serial
+    branch: main
+    binary: eMP_serial
+    build: make
+    enabled: false
+    note: 源码已有 Makefile，但 firmware/ 里还没有对应产物，确认要装机后再启用
+
+  - name: eMP-tokenMonitor
+    repo: ZhangKeLiang0627/eMP-tokenMonitor
+    branch: main
+    binary: eMP_tokenMonitor
+    build: make
+    enabled: false
+    note: 独立工具，非播放器主界面应用
+
+  - name: eMP-gba
+    repo: ZhangKeLiang0627/eMP-gba
+    branch: main
+    binary: eMP_gba
+    build: cmake
+    enabled: false
+    note: GBA 模拟器，走 CMake + T113_SDK，尚未纳入固件
+
+  - name: eMP-template
+    repo: ZhangKeLiang0627/eMP-template
+    branch: main
+    binary: eMP-template
+    build: cmake
+    enabled: false
+    note: 脚手架模板，只有 CMakeLists 没有 Makefile；firmware/eMP_template 并非由它产出
+
+# ---------- 发现新应用时的排除名单 ----------
+exclude:
+  - eMP-toolchain   # 交叉编译工具链，不是应用
+  - eMP-camera      # 空仓库，无构建系统

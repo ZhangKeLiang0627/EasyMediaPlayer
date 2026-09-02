@@ -1,0 +1,89 @@
+name: Build firmware
+
+# 触发方式：
+#   1. 推送 v* 标签 -> 编译并把 firmware.tar.gz 挂到该标签的 Release
+#   2. 手动触发     -> 只编译并把产物作为 workflow artifact 下载（不发 Release）
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      toolchain_ref:
+        description: 'eMP-toolchain 分支或 tag'
+        required: false
+        default: 'main'
+      publish_release:
+        description: '是否发布为 Release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    env:
+      TOOLCHAIN_REPO: https://github.com/ZhangKeLiang0627/eMP-toolchain
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve toolchain commit
+        id: tc
+        run: |
+          ref="${{ github.event.inputs.toolchain_ref || 'main' }}"
+          sha=$(git ls-remote "$TOOLCHAIN_REPO" "refs/heads/$ref" | cut -f1)
+          [ -z "$sha" ] && sha=$(git ls-remote "$TOOLCHAIN_REPO" "refs/tags/$ref" | cut -f1)
+          [ -z "$sha" ] && { echo "无法解析工具链引用: $ref"; exit 1; }
+          echo "ref=$ref"      >> "$GITHUB_OUTPUT"
+          echo "sha=$sha"      >> "$GITHUB_OUTPUT"
+          echo "eMP-toolchain @ $ref -> ${sha:0:12}"
+
+      - name: Cache toolchain
+        id: cache-tc
+        uses: actions/cache@v4
+        with:
+          path: build/toolchain
+          key: t113-toolchain-${{ steps.tc.outputs.sha }}
+
+      - name: Build all apps
+        env:
+          TOOLCHAIN_REF: ${{ steps.tc.outputs.ref }}
+        run: ./scripts/build-all.sh
+
+      - name: Inspect artifacts
+        run: |
+          echo "=== 产物架构 ==="
+          for f in build/dist/firmware/eMP_*; do
+            [ -f "$f" ] || continue
+            printf '  %-22s %s\n' "$(basename "$f")" "$(file -b "$f" | cut -c1-90)"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: build/firmware.tar.gz
+          if-no-files-found: error
+
+      - name: Publish to Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/firmware.tar.gz
+          generate_release_notes: true
+          body: |
+            由 GitHub Actions 自动交叉编译（T113-S3 / arm-openwrt-linux-musl）。
+
+            工具链：`ZhangKeLiang0627/eMP-toolchain` @ `${{ steps.tc.outputs.sha }}`
+
+            解压后把 `firmware/` 整体拷到板子 UDISK 即可：
+            ```bash
+            tar xzf firmware.tar.gz
+            adb push firmware/ /mnt/UDISK/
+            ```

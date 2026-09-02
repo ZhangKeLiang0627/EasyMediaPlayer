@@ -1,16 +1,40 @@
 [submodule "EasyMediaPlayer-mainPage"]
 	path = EasyMediaPlayer-mainPage
-	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-mainPage
+	url = https://github.com/ZhangKeLiang0627/eMP-mainPage
 [submodule "EasyMediaPlayer-video"]
 	path = EasyMediaPlayer-video
-	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-video
+	url = https://github.com/ZhangKeLiang0627/eMP-video
 [submodule "EasyMediaPlayer-picture"]
 	path = EasyMediaPlayer-picture
-	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-picture
+	url = https://github.com/ZhangKeLiang0627/eMP-picture
 [submodule "EasyMediaPlayer-music"]
 	path = EasyMediaPlayer-music
-	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-music
+	url = https://github.com/ZhangKeLiang0627/eMP-music
 
 [submodule "EasyMediaPlayer-about"]
 	path = EasyMediaPlayer-about
-	url = https://github.com/ZhangKeLiang0627/EasyMediaPlayer-about
+	url = https://github.com/ZhangKeLiang0627/eMP-about
+[submodule "eMP-documents"]
+	path = eMP-documents
+	url = https://github.com/ZhangKeLiang0627/eMP-documents.git
+	branch = main
+[submodule "eMP-settings"]
+	path = eMP-settings
+	url = https://github.com/ZhangKeLiang0627/eMP-settings.git
+	branch = main
+[submodule "eMP-tokenMonitor"]
+	path = eMP-tokenMonitor
+	url = https://github.com/ZhangKeLiang0627/eMP-tokenMonitor.git
+	branch = main
+[submodule "eMP-gba"]
+	path = eMP-gba
+	url = https://github.com/ZhangKeLiang0627/eMP-gba.git
+	branch = main
+[submodule "eMP-template"]
+	path = eMP-template
+	url = https://github.com/ZhangKeLiang0627/eMP-template.git
+	branch = main
+[submodule "eMP-serial"]
+	path = eMP-serial
+	url = https://github.com/ZhangKeLiang0627/eMP-serial.git
+	branch = main

@@ -1,0 +1,106 @@
+name: Sync submodules
+
+# 定期扫描账号下的 eMP-* 仓库，发现新应用就自动登记并开 PR。
+# 新应用一律以 enabled: false 加入，不会自动进入固件，需要人工确认后才启用，
+# 因此这个流程不会把 CI 编译弄坏。
+on:
+  schedule:
+    - cron: '17 3 * * 1'      # 每周一 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Discover new apps
+        id: discover
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/emp.py discover --json > /tmp/new_apps.json
+          count=$(python3 -c "import json;print(len(json.load(open('/tmp/new_apps.json'))))")
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          cat /tmp/new_apps.json
+
+      - name: Register new apps
+        if: steps.discover.outputs.count != '0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, re, subprocess
+          from pathlib import Path
+
+          new = json.load(open("/tmp/new_apps.json"))
+          mf = Path("scripts/apps.yaml")
+          text = mf.read_text(encoding="utf-8")
+
+          block = ["", "  # ---------- 由 sync-submodules 工作流自动登记（默认不打包） ----------"]
+          for a in new:
+              block += [
+                  f"  - name: {a['name']}",
+                  f"    repo: ZhangKeLiang0627/{a['name']}",
+                  f"    branch: {a['default_branch']}",
+                  f"    binary: {a['name']}",
+                  "    build: make",
+                  "    enabled: false",
+                  "    note: 自动发现，待人工验证后启用",
+                  "",
+              ]
+          # 插到 exclude: 之前，保持文件结构
+          marker = "\nexclude:"
+          idx = text.find(marker)
+          if idx == -1:
+              text += "\n" + "\n".join(block) + "\n"
+          else:
+              text = text[:idx] + "\n".join(block) + text[idx:]
+          mf.write_text(text, encoding="utf-8")
+          print(f"已登记 {len(new)} 个新应用到 apps.yaml")
+          PY
+
+          python3 scripts/emp.py sync-submodules
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/apps.yaml .gitmodules
+          git status --short
+
+      - name: Open pull request
+        if: steps.discover.outputs.count != '0'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/auto-register-apps
+          title: 'chore: 自动登记新发现的 eMP 应用'
+          commit-message: |
+            chore: 自动登记新发现的 eMP 应用
+
+            由 sync-submodules 工作流扫描 GitHub 仓库后生成。
+            新应用默认 enabled: false，不会进入固件打包，需人工验证后启用。
+
+            Co-Authored-By: WorkBuddy <workbuddy@tencent.com>
+          body: |
+            ## 自动发现的新应用
+
+            扫描 `ZhangKeLiang0627` 账号下带 `emp-app` topic（或 `eMP-*` 命名）的仓库，
+            发现以下尚未登记的候选，已写入 `scripts/apps.yaml` 并添加为子模块。
+
+            > 全部以 `enabled: false` 登记，**不会**进入 `firmware.tar.gz`。
+
+            请检查后把确认可用的应用改成 `enabled: true`。
+
+            合并前建议本地跑一次：
+            ```bash
+            python3 scripts/emp.py check
+            ./scripts/build-all.sh
+            ```
+          labels: |
+            automated
