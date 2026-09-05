@@ -38,3 +38,7 @@
 	path = eMP-serial
 	url = https://github.com/ZhangKeLiang0627/eMP-serial.git
 	branch = main
+[submodule "eMP-nes"]
+	path = eMP-nes
+	url = https://github.com/ZhangKeLiang0627/eMP-nes.git
+	branch = main

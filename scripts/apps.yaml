@@ -99,6 +99,14 @@ apps:
     enabled: false
     note: 脚手架模板，只有 CMakeLists 没有 Makefile；firmware/eMP_template 并非由它产出
 
+  - name: eMP-nes
+    repo: ZhangKeLiang0627/eMP-nes
+    branch: main
+    binary: eMP_nes
+    build: cmake
+    enabled: false
+    note: NES 模拟器（libs/simplenes 核心 + LVGL v9 界面），首版待板端验证后启用
+
 # ---------- 发现新应用时的排除名单 ----------
 exclude:
   - eMP-toolchain   # 交叉编译工具链，不是应用
