@@ -115,6 +115,13 @@ apps:
     build: make
     enabled: false
     note: 自动发现，待人工验证后启用
+  - name: eMP-selftest-tmp
+    repo: ZhangKeLiang0627/eMP-selftest-tmp
+    branch: main
+    binary: eMP-selftest-tmp
+    build: make
+    enabled: false
+    note: 自动发现，待人工验证后启用
 
 # ---------- 发现新应用时的排除名单 ----------
 exclude:

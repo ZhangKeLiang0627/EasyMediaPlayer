@@ -46,3 +46,7 @@
 	path = eMP-sketch
 	url = https://github.com/ZhangKeLiang0627/eMP-sketch.git
 	branch = main
+[submodule "eMP-selftest-tmp"]
+	path = eMP-selftest-tmp
+	url = https://github.com/ZhangKeLiang0627/eMP-selftest-tmp.git
+	branch = main
