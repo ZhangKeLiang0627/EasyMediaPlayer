@@ -7,7 +7,8 @@ eMP 应用清单工具。
   list              输出启用的应用，每行: name<TAB>repo<TAB>branch<TAB>binary<TAB>build<TAB>path
   discover          扫描 GitHub 上带 emp-app topic（或 eMP-* 命名）的仓库，
                     列出尚未登记进 apps.yaml 的候选
-  sync-submodules   依据 apps.yaml 增删子模块（缺失的自动 git submodule add）
+  sync-submodules   依据 apps.yaml 补齐子模块（只 add 未登记的；已登记但
+                    未检出的默认跳过，加 --init 才检出）
   bump              把每个 app 子模块的 gitlink 拉新到其分支最新提交
                     （发布前调用；--commit 提交，--dry-run 只预览）
   check             校验 .gitmodules 与 apps.yaml 是否一致
@@ -200,19 +201,71 @@ def cmd_discover(args) -> int:
     return 0
 
 
+def _gitlink_sha(rel: str) -> str:
+    """返回索引里该路径的 gitlink（mode 160000）SHA；不是子模块则为空串。"""
+    r = subprocess.run(["git", "ls-files", "-s", "--", rel], cwd=ROOT,
+                       capture_output=True, text=True)
+    for line in r.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 4 and parts[0] == "160000":
+            return parts[1]
+    return ""
+
+
+def _gitmodules_paths() -> set[str]:
+    gm = ROOT / ".gitmodules"
+    if not gm.exists():
+        return set()
+    return {ln.split("=", 1)[1].strip()
+            for ln in gm.read_text(encoding="utf-8").splitlines()
+            if ln.strip().startswith("path = ")}
+
+
 def cmd_sync(args) -> int:
+    """按 apps.yaml 补齐缺失的子模块。
+
+    注意「已登记」的三种形态：
+      1. 本地开发机：目录里有 .git（真正检出过）
+      2. CI 全新 checkout：空目录 + 索引里的 gitlink + .gitmodules 条目，
+         目录里没有 .git —— 此时再跑 `git submodule add` 会直接
+         fatal: '<path>' already exists in the index（曾经的 CI 失败原因）
+      3. 半残：.git/modules/<path> 存在但工作区没检出
+    所以判定「要不要 add」必须看 .gitmodules / 索引，而不是只看目录里有没有 .git。
+    """
+    registered = _gitmodules_paths()
     for a in all_apps():
-        path = ROOT / a["path"]
+        rel = a["path"]
+        path = ROOT / rel
         url = f"https://github.com/{a['repo']}.git"
-        if path.exists() and (path / ".git").exists():
-            print(f"[skip] {a['path']} 已存在")
+
+        if (path / ".git").exists():
+            print(f"[skip] {rel} 已检出")
             continue
+
+        if rel in registered or _gitlink_sha(rel):
+            if args.init:
+                print(f"[init] {rel} <- {url}")
+                r = subprocess.run(
+                    ["git", "submodule", "update", "--init", "--", rel],
+                    cwd=ROOT, capture_output=True, text=True)
+                if r.returncode != 0:
+                    print(r.stderr, file=sys.stderr)
+                    raise SystemExit(1)
+            else:
+                print(f"[keep] {rel} 已登记为子模块，工作区未检出（跳过 add）")
+            continue
+
+        if path.exists() and any(path.iterdir()):
+            print(f"[error] {rel} 目录非空但不是子模块，请先清理后重试",
+                  file=sys.stderr)
+            raise SystemExit(1)
+
         if args.dry_run:
-            print(f"[would add] {a['path']} <- {url}")
+            print(f"[would add] {rel} <- {url}")
             continue
-        print(f"[add] {a['path']} <- {url}")
+        print(f"[add] {rel} <- {url}")
         base = ["git", "submodule", "add"]
-        cmd = base + ["--branch", a["branch"], url, a["path"]]
+        cmd = base + ["--branch", a["branch"], url, rel]
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
         if r.returncode != 0:
             # 常见于上次运行被中断，.git/modules/<path> 已存在：
@@ -220,7 +273,7 @@ def cmd_sync(args) -> int:
             if "is found locally" in (r.stderr or ""):
                 print("      本地已有 git 目录，改用 --force 复用")
                 subprocess.run(base + ["--force", "--branch", a["branch"],
-                                       url, a["path"]], cwd=ROOT, check=True)
+                                       url, rel], cwd=ROOT, check=True)
             else:
                 print(r.stderr, file=sys.stderr)
                 raise SystemExit(1)
@@ -333,8 +386,11 @@ def main() -> int:
     d.add_argument("--json", action="store_true", help="以 JSON 输出，供自动化消费")
     d.set_defaults(func=cmd_discover)
 
-    s = sub.add_parser("sync-submodules", help="按清单增删子模块")
+    s = sub.add_parser("sync-submodules", help="按清单补齐缺失的子模块")
     s.add_argument("--dry-run", action="store_true")
+    s.add_argument("--init", action="store_true",
+                   help="对已登记但工作区未检出的子模块执行 "
+                        "git submodule update --init")
     s.set_defaults(func=cmd_sync)
 
     b = sub.add_parser("bump", help="把各 app 子模块指针拉新到分支最新提交")
