@@ -60,7 +60,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          bash scripts/bump-submodules.sh --commit || exit 1
+          # 拉新指针失败不应阻塞打包：build-all.sh 本来就按各分支最新克隆，
+          # VERSIONS.txt 也记录了实际来源提交，包里内容仍是新的，只是
+          # umbrella 的 gitlink 稍旧。因此这里降级为告警而不是 exit 1。
+          if ! bash scripts/bump-submodules.sh --commit; then
+            echo "::warning::子模块指针拉新失败，本次仍按各 app 分支最新编译，但 umbrella 的 gitlink 未更新"
+          fi
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main \
             || echo "[warn] 推送未生效（远端可能刚有更新），继续构建"
 
