@@ -113,43 +113,19 @@ jobs:
 
           echo "registered=$(cat /tmp/registered.txt 2>/dev/null || echo 0)" >> "$GITHUB_OUTPUT"
 
-      - name: Check PR permission
-        id: prperm
-        if: steps.discover.outputs.count != '0'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PAT: ${{ secrets.EMP_PR_TOKEN }}
-        run: |
-          # 配置了 PAT 就用 PAT 建 PR —— 个人令牌不受仓库
-          # 「Allow GitHub Actions to create and approve pull requests」开关限制
-          if [ -n "$PAT" ]; then
-            echo "token=$PAT" >> "$GITHUB_OUTPUT"
-            echo "usable=true" >> "$GITHUB_OUTPUT"
-            echo "使用 EMP_PR_TOKEN 建 PR"
-            exit 0
-          fi
-
-          allowed=$(curl -s -m 20 \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/permissions/workflow" \
-            | python3 -c "import json,sys;print(json.load(sys.stdin).get('can_approve_pull_request_reviews'))")
-          echo "can_approve_pull_request_reviews=$allowed"
-
-          if [ "$allowed" = "True" ]; then
-            echo "usable=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "usable=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::仓库未允许 Actions 创建 PR，本次跳过开 PR、改为上传改动补丁 auto-register-patch。恢复自动开 PR 需在 Settings -> Actions -> General -> Workflow permissions 勾选 Allow GitHub Actions to create and approve pull requests，或配置 EMP_PR_TOKEN。"
-          fi
-
       - name: Open pull request
-        if: |
-          steps.discover.outputs.count != '0'
-          && steps.register.outputs.registered != '0'
-          && steps.prperm.outputs.usable == 'true'
+        id: openpr
+        # 不要用 GITHUB_TOKEN 预读 can_approve_pull_request_reviews 来判断权限：
+        # 那个端点需要 admin，installation token 只会拿到 None，会把"其实可以"
+        # 误判成"不可以"，PR 就再也开不出来。改成直接尝试，失败再降级。
+        # continue-on-error：仓库若真关了「Allow GitHub Actions to create and
+        # approve pull requests」，这一步会失败，但不让整个流程判红，
+        # 由后面的 Warn/Upload patch 步骤接管。
+        if: steps.discover.outputs.count != '0' && steps.register.outputs.registered != '0'
+        continue-on-error: true
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ steps.prperm.outputs.token || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.EMP_PR_TOKEN || secrets.GITHUB_TOKEN }}
           branch: chore/auto-register-apps
           title: '@add(sub): 自动登记新发现的 eMP 应用'
           commit-message: |
@@ -177,11 +153,13 @@ jobs:
           labels: |
             automated
 
+      - name: Warn on PR failure
+        if: steps.openpr.outcome == 'failure'
+        run: |
+          echo "::warning::自动开 PR 失败，改动已保存为 auto-register-patch。最常见原因是仓库未允许 Actions 创建 PR：Settings -> Actions -> General -> Workflow permissions 勾选 Allow GitHub Actions to create and approve pull requests，或配置 EMP_PR_TOKEN。"
+
       - name: Upload patch
-        if: |
-          steps.discover.outputs.count != '0'
-          && steps.register.outputs.registered != '0'
-          && steps.prperm.outputs.usable != 'true'
+        if: steps.openpr.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: auto-register-patch
