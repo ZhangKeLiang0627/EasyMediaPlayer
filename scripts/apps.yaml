@@ -107,6 +107,15 @@ apps:
     enabled: false
     note: NES 模拟器（libs/simplenes 核心 + LVGL v9 界面），首版待板端验证后启用
 
+  # ---------- 由 sync-submodules 工作流自动登记（默认不打包） ----------
+  - name: eMP-sketch
+    repo: ZhangKeLiang0627/eMP-sketch
+    branch: main
+    binary: eMP-sketch
+    build: make
+    enabled: false
+    note: 自动发现，待人工验证后启用
+
 # ---------- 发现新应用时的排除名单 ----------
 exclude:
   - eMP-toolchain   # 交叉编译工具链，不是应用
