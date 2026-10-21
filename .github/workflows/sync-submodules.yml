@@ -3,6 +3,11 @@ name: Sync submodules
 # 定期扫描账号下的 eMP-* 仓库，发现新应用就自动登记并开 PR。
 # 新应用一律以 enabled: false 加入，不会自动进入固件，需要人工确认后才启用，
 # 因此这个流程不会把 CI 编译弄坏。
+#
+# 容错约定 —— 只在「真的判断不了」时才让流程失败：
+#   * 候选仓库是空的 / 分支不存在 / 无权访问 -> 跳过并告警，不影响同批其它候选
+#   * 网络抖动 -> API 与 git 调用都带重试
+#   * 仓库不允许 Actions 开 PR -> 不开 PR，改上传改动补丁，流程仍然通过
 on:
   schedule:
     - cron: '17 3 * * 1'      # 每周一 03:17 UTC
@@ -25,12 +30,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 scripts/emp.py discover --json > /tmp/new_apps.json
+          # --verify 会对每个候选探一次分支是否存在。空仓库、分支被删的候选
+          # 在这里就被标记 branch_ok=false，不会进到登记环节把整步弄红。
+          python3 scripts/emp.py discover --json --verify > /tmp/new_apps.json
           count=$(python3 -c "import json;print(len(json.load(open('/tmp/new_apps.json'))))")
           echo "count=$count" >> "$GITHUB_OUTPUT"
           cat /tmp/new_apps.json
 
       - name: Register new apps
+        id: register
         if: steps.discover.outputs.count != '0'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -43,13 +51,28 @@ jobs:
           mf = Path("scripts/apps.yaml")
           text = mf.read_text(encoding="utf-8")
 
+          # 分支探测没通过的候选直接跳过：登记了也 add 不上，
+          # 只会让 sync-submodules 多一次失败。留个 warning 便于人工确认。
+          usable = [a for a in new if a.get("branch_ok") is not False]
+          skipped = [a for a in new if a.get("branch_ok") is False]
+          for a in skipped:
+              print(f"::warning::{a['name']} 的 {a['default_branch']} 分支不存在"
+                    f"或仓库为空，跳过登记（确认无用可加入 apps.yaml 的 exclude）")
+
           # 去重：重跑同一个 run 或 PR 已合并后又被发现时，不要重复登记
-          todo = [a for a in new if f"name: {a['name']}" not in text]
-          if not todo:
-              print("候选均已在 apps.yaml 中登记，跳过")
+          todo = [a for a in usable if f"name: {a['name']}" not in text]
+
+          def done(n: int, msg: str) -> None:
+              Path("/tmp/registered.txt").write_text(str(n), encoding="utf-8")
+              print(msg)
               raise SystemExit(0)
 
-          block = ["", "  # ---------- 由 sync-submodules 工作流自动登记（默认不打包） ----------"]
+          if not todo:
+              done(0, "候选均已在 apps.yaml 中登记，跳过")
+
+          # 分组注释只在文件里还没有时插一次，避免每发现一个应用就堆一行
+          header = "  # ---------- 由 sync-submodules 工作流自动登记（默认不打包） ----------"
+          block = [] if header.strip() in text else ["", header]
           for a in todo:
               block += [
                   f"  - name: {a['name']}",
@@ -73,30 +96,69 @@ jobs:
           else:
               text = text[:idx] + "\n".join(block) + text[idx:]
           mf.write_text(text, encoding="utf-8")
-          print(f"已登记 {len(todo)} 个新应用到 apps.yaml")
+          done(len(todo), f"已登记 {len(todo)} 个新应用到 apps.yaml")
           PY
 
-          python3 scripts/emp.py sync-submodules
+          # --tolerant：单个应用 add 失败只告警不中止，避免一个坏仓库
+          # 挡住同批次其它正常候选
+          python3 scripts/emp.py sync-submodules --tolerant
 
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scripts/apps.yaml .gitmodules
+          git add scripts/apps.yaml
+          [ -f .gitmodules ] && git add .gitmodules
           git status --short
+          # 挂成补丁，万一开不了 PR 也能人工取走
+          git diff --cached > /tmp/auto-register.patch
+
+          echo "registered=$(cat /tmp/registered.txt 2>/dev/null || echo 0)" >> "$GITHUB_OUTPUT"
+
+      - name: Check PR permission
+        id: prperm
+        if: steps.discover.outputs.count != '0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT: ${{ secrets.EMP_PR_TOKEN }}
+        run: |
+          # 配置了 PAT 就用 PAT 建 PR —— 个人令牌不受仓库
+          # 「Allow GitHub Actions to create and approve pull requests」开关限制
+          if [ -n "$PAT" ]; then
+            echo "token=$PAT" >> "$GITHUB_OUTPUT"
+            echo "usable=true" >> "$GITHUB_OUTPUT"
+            echo "使用 EMP_PR_TOKEN 建 PR"
+            exit 0
+          fi
+
+          allowed=$(curl -s -m 20 \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/permissions/workflow" \
+            | python3 -c "import json,sys;print(json.load(sys.stdin).get('can_approve_pull_request_reviews'))")
+          echo "can_approve_pull_request_reviews=$allowed"
+
+          if [ "$allowed" = "True" ]; then
+            echo "usable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "usable=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::仓库未允许 Actions 创建 PR，本次跳过开 PR、改为上传改动补丁 auto-register-patch。恢复自动开 PR 需在 Settings -> Actions -> General -> Workflow permissions 勾选 Allow GitHub Actions to create and approve pull requests，或配置 EMP_PR_TOKEN。"
+          fi
 
       - name: Open pull request
-        if: steps.discover.outputs.count != '0'
+        if: |
+          steps.discover.outputs.count != '0'
+          && steps.register.outputs.registered != '0'
+          && steps.prperm.outputs.usable == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.prperm.outputs.token || secrets.GITHUB_TOKEN }}
           branch: chore/auto-register-apps
-          title: 'chore: 自动登记新发现的 eMP 应用'
+          title: '@add(sub): 自动登记新发现的 eMP 应用'
           commit-message: |
-            chore: 自动登记新发现的 eMP 应用
+            @add(sub): 自动登记新发现的 eMP 应用
 
             由 sync-submodules 工作流扫描 GitHub 仓库后生成。
             新应用默认 enabled: false，不会进入固件打包，需人工验证后启用。
 
-            Co-Authored-By: WorkBuddy <workbuddy@tencent.com>
+            Co-Authored-By: Claude <noreply@anthropic.com>
           body: |
             ## 自动发现的新应用
 
@@ -114,3 +176,14 @@ jobs:
             ```
           labels: |
             automated
+
+      - name: Upload patch
+        if: |
+          steps.discover.outputs.count != '0'
+          && steps.register.outputs.registered != '0'
+          && steps.prperm.outputs.usable != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-register-patch
+          path: /tmp/auto-register.patch
+          if-no-files-found: warn
