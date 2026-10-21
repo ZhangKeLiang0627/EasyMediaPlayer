@@ -42,3 +42,7 @@
 	path = eMP-nes
 	url = https://github.com/ZhangKeLiang0627/eMP-nes.git
 	branch = main
+[submodule "eMP-sketch"]
+	path = eMP-sketch
+	url = https://github.com/ZhangKeLiang0627/eMP-sketch.git
+	branch = main
